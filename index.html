@@ -352,6 +352,8 @@
         function startGame() {
             let isTouchDevice = false;
             const scale = window.innerWidth < 768 ? 0.8 : 1;
+            let canDropFruit = true;
+            const dropInterval = 400; // フルーツを落下させる間隔（ミリ秒）
 
             // マウス移動イベント
             canvas.addEventListener('mousemove', (e) => {
@@ -374,19 +376,28 @@
 
             // マウスクリックイベント
             canvas.addEventListener('click', () => {
-                if (isTouchDevice) return;
+                if (isTouchDevice || !canDropFruit) return;
                 if (currentFruit && !gameOver) {
                     droppedFruits.push(currentFruit);
                     currentFruit = null;
+                    canDropFruit = false;
+                    setTimeout(() => {
+                        canDropFruit = true;
+                    }, dropInterval);
                 }
             });
 
             // タッチ終了イベント
             canvas.addEventListener('touchend', () => {
                 isTouchDevice = true;
+                if (!canDropFruit) return;
                 if (currentFruit && !gameOver) {
                     droppedFruits.push(currentFruit);
                     currentFruit = null;
+                    canDropFruit = false;
+                    setTimeout(() => {
+                        canDropFruit = true;
+                    }, dropInterval);
                 }
             });
 
