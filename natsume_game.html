@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>なつめゲーム</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #game-container {
+            display: flex;
+            gap: 20px;
+        }
+        canvas {
+            border: 1px solid black;
+        }
+        #side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            display: none;
+        }
+        #continue-button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <div id="side-panel">
+            <canvas id="nextFruitCanvas" width="100" height="100"></canvas>
+            <canvas id="fruitEvolutionCanvas" width="200" height="200"></canvas>
+        </div>
+    </div>
+    <div id="game-over">
+        <h2>ゲームオーバー</h2>
+        <p>スコア: <span id="final-score"></span></p>
+        <button id="continue-button">続ける</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const nextFruitCanvas = document.getElementById('nextFruitCanvas');
+        const nextFruitCtx = nextFruitCanvas.getContext('2d');
+        const fruitEvolutionCanvas = document.getElementById('fruitEvolutionCanvas');
+        const fruitEvolutionCtx = fruitEvolutionCanvas.getContext('2d');
+        const gameOverElement = document.getElementById('game-over');
+        const finalScoreElement = document.getElementById('final-score');
+        const continueButton = document.getElementById('continue-button');
+
+        const physics = {
+            gravity: 0.5,
+            restitution: 0.3,
+            friction: 0.99,
+            collisionDamping: 0.8
+        };
+
+        const fruits = [
+            {name: 'さくらんぼ', image: './images/sakuranbo.png', radius: 15},
+            {name: 'いちご', image: './images/ichigo.png', radius: 20},
+            {name: 'ぶどう', image: './images/budou.png', radius: 26},
+            {name: 'デコポン', image: './images/decopon.png', radius: 33},
+            {name: 'かき', image: './images/kaki.png', radius: 41},
+            {name: 'りんご', image: './images/ringo.png', radius: 50},
+            {name: 'なし', image: './images/nasi.png', radius: 60},
+            {name: 'もも', image: './images/momo.png', radius: 71},
+            {name: 'パイナップル', image: './images/painappuru.png', radius: 83},
+            {name: 'メロン', image: './images/meron.png', radius: 96},
+            {name: 'スイカ', image: './images/suika.png', radius: 110}
+        ];
+
+        let fruitImages = {};
+        let imagesLoaded = 0;
+        let totalImages = fruits.length;
+
+        fruits.forEach(fruit => {
+            let img = new Image();
+            img.onload = () => {
+                imagesLoaded++;
+                if (imagesLoaded === totalImages) {
+                    startGame();
+                }
+            };
+            img.src = fruit.image;
+            fruitImages[fruit.name] = img;
+        });
+
+        let currentFruit = null;
+        let nextFruit = null;
+        let droppedFruits = [];
+        let score = 0;
+        let gameOver = false;
+        const gameOverLine = 100;
+
+        function createFruit(x, y, fruitIndex) {
+            return {
+                x: x,
+                y: y,
+                fruit: fruits[fruitIndex],
+                vx: 0,
+                vy: 0,
+                grounded: false
+            };
+        }
+
+        function drawFruit(ctx, fruit, x, y) {
+            const img = fruitImages[fruit.fruit.name];
+            const size = fruit.fruit.radius * 2;
+            ctx.drawImage(img, x - size/2, y - size/2, size, size);
+        }
+
+        function drawNextFruit() {
+            nextFruitCtx.clearRect(0, 0, nextFruitCanvas.width, nextFruitCanvas.height);
+            nextFruitCtx.font = '16px Arial';
+            nextFruitCtx.fillStyle = 'black';
+            nextFruitCtx.fillText('NEXT', 10, 20);
+
+            const originalRadius = nextFruit.fruit.radius;
+            nextFruit.fruit.radius = 30; // すべてのフルーツを同じ大きさに設定
+            drawFruit(nextFruitCtx, nextFruit, nextFruitCanvas.width / 2, nextFruitCanvas.height / 2);
+            nextFruit.fruit.radius = originalRadius; // 元の大きさに戻す
+        }
+
+        function drawFruitEvolution() {
+            fruitEvolutionCtx.clearRect(0, 0, fruitEvolutionCanvas.width, fruitEvolutionCanvas.height);
+            const centerX = fruitEvolutionCanvas.width / 2;
+            const centerY = fruitEvolutionCanvas.height / 2;
+            const radius = Math.min(centerX, centerY) - 30;
+
+            // 円形の矢印を描画
+            drawCircularArrow(fruitEvolutionCtx, centerX, centerY, radius);
+
+            fruits.forEach((fruit, index) => {
+                const angle = (index / fruits.length) * Math.PI * 2 - Math.PI / 2;
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+
+                const originalRadius = fruit.radius;
+                fruit.radius = 15; // すべてのフルーツを同じ大きさに設定
+                drawFruit(fruitEvolutionCtx, { fruit: fruit }, x, y);
+                fruit.radius = originalRadius; // 元の大きさに戻す
+            });
+        }
+
+        function drawCircularArrow(ctx, centerX, centerY, radius) {
+            const arrowHeadLength = 32; // 矢印の頭の長さ
+            const arrowHeadAngle = Math.PI / 4; // 矢印の頭の角度
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, -0.5* Math.PI, 1.35* Math.PI);
+            ctx.lineWidth = 25; // 線の太さ
+            ctx.strokeStyle = 'orange';
+            ctx.stroke();
+
+            // 矢印の頭を描画
+            const endAngle = 1.4 * Math.PI;
+            const endX = centerX + radius * Math.cos(endAngle);
+            const endY = centerY + radius * Math.sin(endAngle);
+            const rotatedAngle = endAngle + Math.PI / 2.2;
+            ctx.beginPath();
+            ctx.moveTo(endX, endY);
+            ctx.lineTo(endX - arrowHeadLength * Math.cos(rotatedAngle - arrowHeadAngle), endY - arrowHeadLength * Math.sin(rotatedAngle - arrowHeadAngle));
+            ctx.lineTo(endX - arrowHeadLength * Math.cos(rotatedAngle + arrowHeadAngle), endY - arrowHeadLength * Math.sin(rotatedAngle + arrowHeadAngle));
+            ctx.lineTo(endX, endY);
+            ctx.fillStyle = 'orange';
+            ctx.fill();
+        }
+
+        function update() {
+            if (gameOver) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // スコアを描画
+            ctx.font = '30px Arial';
+            ctx.fillStyle = 'black';
+            ctx.fillText(`スコア: ${score}`, 10, 40);
+
+            ctx.beginPath();
+            ctx.moveTo(0, gameOverLine);
+            ctx.lineTo(canvas.width, gameOverLine);
+            ctx.strokeStyle = 'red';
+            ctx.stroke();
+
+            if (!currentFruit) {
+                currentFruit = nextFruit;
+                const randomIndex = Math.floor(Math.random() * 5); // さくらんぼ、いちご、ぶどう、デコポン、かき
+                nextFruit = createFruit(canvas.width / 2, fruits[randomIndex].radius, randomIndex);
+                drawNextFruit();
+            }
+
+            for (let fruit of droppedFruits) {
+                applyPhysics(fruit);
+                drawFruit(ctx, fruit, fruit.x, fruit.y);
+
+                if (fruit.grounded && fruit.y - fruit.fruit.radius <= gameOverLine) {
+                    gameOver = true;
+                    showGameOver();
+                    return;
+                }
+            }
+
+            drawFruit(ctx, currentFruit, currentFruit.x, currentFruit.y);
+            checkCollisions();
+            requestAnimationFrame(update);
+        }
+
+        function applyPhysics(fruit) {
+            fruit.vy += physics.gravity;
+            fruit.x += fruit.vx;
+            fruit.y += fruit.vy;
+
+            if (fruit.x - fruit.fruit.radius < 0) {
+                fruit.x = fruit.fruit.radius;
+                fruit.vx *= -physics.restitution;
+            } else if (fruit.x + fruit.fruit.radius > canvas.width) {
+                fruit.x = canvas.width - fruit.fruit.radius;
+                fruit.vx *= -physics.restitution;
+            }
+
+            if (fruit.y + fruit.fruit.radius > canvas.height) {
+                fruit.y = canvas.height - fruit.fruit.radius;
+                fruit.vy *= -physics.restitution;
+                fruit.vx *= physics.friction;
+                if (Math.abs(fruit.vy) < 0.1) fruit.vy = 0;
+                fruit.grounded = true;
+            }
+        }
+
+        function checkCollisions() {
+            for (let i = 0; i < droppedFruits.length; i++) {
+                for (let j = i + 1; j < droppedFruits.length; j++) {
+                    const fruit1 = droppedFruits[i];
+                    const fruit2 = droppedFruits[j];
+
+                    const dx = fruit2.x - fruit1.x;
+                    const dy = fruit2.y - fruit1.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const minDistance = fruit1.fruit.radius + fruit2.fruit.radius;
+
+                    if (distance < minDistance) {
+                        // Collision resolution
+                        const angle = Math.atan2(dy, dx);
+                        const overlap = minDistance - distance;
+
+                        const totalRadius = fruit1.fruit.radius + fruit2.fruit.radius;
+                        const moveRatio1 = fruit2.fruit.radius / totalRadius;
+                        const moveRatio2 = fruit1.fruit.radius / totalRadius;
+
+                        fruit1.x -= Math.cos(angle) * overlap * moveRatio1;
+                        fruit1.y -= Math.sin(angle) * overlap * moveRatio1;
+                        fruit2.x += Math.cos(angle) * overlap * moveRatio2;
+                        fruit2.y += Math.sin(angle) * overlap * moveRatio2;
+
+                        const vx = fruit2.vx - fruit1.vx;
+                        const vy = fruit2.vy - fruit1.vy;
+                        const velocityAlongNormal = vx * Math.cos(angle) + vy * Math.sin(angle);
+
+                        if (velocityAlongNormal > 0) {
+                            const impulse = (1 + physics.restitution) * velocityAlongNormal;
+                            const impulseX = impulse * Math.cos(angle);
+                            const impulseY = impulse * Math.sin(angle);
+
+                            fruit1.vx += impulseX * moveRatio1;
+                            fruit1.vy += impulseY * moveRatio1;
+                            fruit2.vx -= impulseX * moveRatio2;
+                            fruit2.vy -= impulseY * moveRatio2;
+                        }
+
+                        fruit1.vx *= physics.collisionDamping;
+                        fruit1.vy *= physics.collisionDamping;
+                        fruit2.vx *= physics.collisionDamping;
+                        fruit2.vy *= physics.collisionDamping;
+
+                        // フルーツが接触したときにgroundedをtrueに設定
+                        fruit1.grounded = true;
+                        fruit2.grounded = true;
+
+                        if (fruit1.fruit === fruit2.fruit && fruits.indexOf(fruit1.fruit) < fruits.length - 1) {
+                            const newFruitIndex = fruits.indexOf(fruit1.fruit) + 1;
+                            const newFruit = createFruit((fruit1.x + fruit2.x) / 2, (fruit1.y + fruit2.y) / 2, newFruitIndex);
+                            newFruit.vx = (fruit1.vx + fruit2.vx) / 2;
+                            newFruit.vy = (fruit1.vy + fruit2.vy) / 2;
+                            droppedFruits.splice(j, 1);
+                            droppedFruits.splice(i, 1);
+                            droppedFruits.push(newFruit);
+                            score += newFruitIndex * 10;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        function showGameOver() {
+            gameOverElement.style.display = 'block';
+            finalScoreElement.textContent = score;
+        }
+
+        function restartGame() {
+            gameOver = false;
+            score = 0;
+            droppedFruits = [];
+            currentFruit = null;
+            nextFruit = null;
+            gameOverElement.style.display = 'none';
+            const randomIndex = Math.floor(Math.random() * 5);
+            nextFruit = createFruit(canvas.width / 2, fruits[randomIndex].radius, randomIndex);
+            drawNextFruit();
+            update();
+        }
+
+        function startGame() {
+            canvas.addEventListener('mousemove', (e) => {
+                if (currentFruit && !gameOver) {
+                    const rect = canvas.getBoundingClientRect();
+                    currentFruit.x = e.clientX - rect.left;
+                }
+            });
+
+            canvas.addEventListener('click', () => {
+                if (currentFruit && !gameOver) {
+                    droppedFruits.push(currentFruit);
+                    currentFruit = null;
+                }
+            });
+
+            continueButton.addEventListener('click', restartGame);
+
+            drawFruitEvolution();
+            restartGame();
+        }
+    </script>
+</body>
+</html>
