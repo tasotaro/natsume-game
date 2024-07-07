@@ -30,6 +30,7 @@
             display: flex;
             flex-direction: row-reverse;
             gap: 20px;
+            transform: scale(0.8); /* 全体を縮小表示 */
         }
         #game-over {
             position: absolute;
@@ -64,7 +65,7 @@
     <div id="game-container">
         <canvas id="gameCanvas" width="400" height="600"></canvas>
         <div id="side-panel">
-            <canvas id="nextFruitCanvas" width="200" height="200"></canvas>
+            <canvas id="nextFruitCanvas" width="150" height="150"></canvas>
             <canvas id="fruitEvolutionCanvas" width="200" height="200"></canvas>
         </div>
     </div>
