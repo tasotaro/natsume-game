@@ -41,32 +41,6 @@
             padding: 10px 20px;
             font-size: 16px;
         }
-
-        /* スマホ向けのスタイル */
-        @media (max-width: 768px) {
-            body {
-                flex-direction: column;
-                justify-content: flex-start;
-                align-items: center;
-            }
-            #game-container {
-                flex-direction: column;
-                align-items: center;
-            }
-            #gameCanvas {
-                width: 100%;
-                height: auto;
-            }
-            #nextFruitCanvas,
-            #fruitEvolutionCanvas {
-                width: 80px;
-                height: 80px;
-            }
-            #side-panel {
-                flex-direction: row;
-                gap: 10px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -183,156 +157,199 @@
 
                 const originalRadius = fruit.radius;
                 fruit.radius = 15; // すべてのフルーツを同じ大きさに設定
-                drawFruit(fruitEvolutionCtx, {fruit: fruit}, x, y);
+                drawFruit(fruitEvolutionCtx, { fruit: fruit }, x, y);
                 fruit.radius = originalRadius; // 元の大きさに戻す
             });
         }
 
-        function drawCircularArrow(ctx, x, y, radius) {
-            ctx.save();
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 2;
+        function drawCircularArrow(ctx, centerX, centerY, radius) {
+            const arrowHeadLength = 32; // 矢印の頭の長さ
+            const arrowHeadAngle = Math.PI / 4; // 矢印の頭の角度
+
             ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.arc(centerX, centerY, radius, -0.5* Math.PI, 1.35* Math.PI);
+            ctx.lineWidth = 25; // 線の太さ
+            ctx.strokeStyle = 'orange';
             ctx.stroke();
+
+            // 矢印の頭を描画
+            const endAngle = 1.4 * Math.PI;
+            const endX = centerX + radius * Math.cos(endAngle);
+            const endY = centerY + radius * Math.sin(endAngle);
+            const rotatedAngle = endAngle + Math.PI / 2.2;
             ctx.beginPath();
-            const arrowHeadLength = 10;
-            const arrowAngle = Math.PI / 6;
-            ctx.moveTo(x + radius, y);
-            ctx.lineTo(x + radius - arrowHeadLength * Math.cos(arrowAngle), y - arrowHeadLength * Math.sin(arrowAngle));
-            ctx.moveTo(x + radius, y);
-            ctx.lineTo(x + radius - arrowHeadLength * Math.cos(arrowAngle), y + arrowHeadLength * Math.sin(arrowAngle));
-            ctx.stroke();
-            ctx.restore();
-        }
-
-        function drawGameOver() {
-            gameOverElement.style.display = 'block';
-            finalScoreElement.textContent = score;
-        }
-
-        function startGame() {
-            score = 0;
-            gameOver = false;
-            droppedFruits = [];
-            gameOverElement.style.display = 'none';
-            currentFruit = createFruit(canvas.width / 2, 0, 0);
-            nextFruit = createFruit(canvas.width / 2, 0, Math.floor(Math.random() * fruits.length));
-            drawNextFruit();
-            drawFruitEvolution();
-            requestAnimationFrame(gameLoop);
-        }
-
-        function gameLoop() {
-            if (gameOver) return;
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
+            ctx.moveTo(endX, endY);
+            ctx.lineTo(endX - arrowHeadLength * Math.cos(rotatedAngle - arrowHeadAngle), endY - arrowHeadLength * Math.sin(rotatedAngle - arrowHeadAngle));
+            ctx.lineTo(endX - arrowHeadLength * Math.cos(rotatedAngle + arrowHeadAngle), endY - arrowHeadLength * Math.sin(rotatedAngle + arrowHeadAngle));
+            ctx.lineTo(endX, endY);
+            ctx.fillStyle = 'orange';
+            ctx.fill();
         }
 
         function update() {
-            if (currentFruit) {
-                currentFruit.vy += physics.gravity;
-                currentFruit.x += currentFruit.vx;
-                currentFruit.y += currentFruit.vy;
+            if (gameOver) return;
 
-                if (currentFruit.y + currentFruit.fruit.radius > canvas.height) {
-                    currentFruit.y = canvas.height - currentFruit.fruit.radius;
-                    currentFruit.vy *= -physics.restitution;
-                    currentFruit.vx *= physics.friction;
-                    currentFruit.grounded = true;
-                }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                if (currentFruit.grounded) {
-                    droppedFruits.push(currentFruit);
-                    checkForMerges();
-                    if (currentFruit.y < gameOverLine) {
-                        gameOver = true;
-                        drawGameOver();
-                    } else {
-                        currentFruit = nextFruit;
-                        nextFruit = createFruit(canvas.width / 2, 0, Math.floor(Math.random() * fruits.length));
-                        drawNextFruit();
-                    }
+            // スコアを描画
+            ctx.font = '30px Arial';
+            ctx.fillStyle = 'black';
+            ctx.fillText(`スコア: ${score}`, 10, 40);
+
+            ctx.beginPath();
+            ctx.moveTo(0, gameOverLine);
+            ctx.lineTo(canvas.width, gameOverLine);
+            ctx.strokeStyle = 'red';
+            ctx.stroke();
+
+            if (!currentFruit) {
+                currentFruit = nextFruit;
+                const randomIndex = Math.floor(Math.random() * 5); // さくらんぼ、いちご、ぶどう、デコポン、かき
+                nextFruit = createFruit(canvas.width / 2, fruits[randomIndex].radius, randomIndex);
+                drawNextFruit();
+            }
+
+            for (let fruit of droppedFruits) {
+                applyPhysics(fruit);
+                drawFruit(ctx, fruit, fruit.x, fruit.y);
+
+                if (fruit.grounded && fruit.y - fruit.fruit.radius <= gameOverLine) {
+                    gameOver = true;
+                    showGameOver();
+                    return;
                 }
             }
 
-            droppedFruits.forEach(fruit => {
-                fruit.vy += physics.gravity;
-                fruit.x += fruit.vx;
-                fruit.y += fruit.vy;
-
-                if (fruit.y + fruit.fruit.radius > canvas.height) {
-                    fruit.y = canvas.height - fruit.fruit.radius;
-                    fruit.vy *= -physics.restitution;
-                    fruit.vx *= physics.friction;
-                    fruit.grounded = true;
-                }
-            });
-
-            resolveCollisions();
+            drawFruit(ctx, currentFruit, currentFruit.x, currentFruit.y);
+            checkCollisions();
+            requestAnimationFrame(update);
         }
 
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            droppedFruits.forEach(fruit => drawFruit(ctx, fruit, fruit.x, fruit.y));
-            if (currentFruit) drawFruit(ctx, currentFruit, currentFruit.x, currentFruit.y);
+        function applyPhysics(fruit) {
+            fruit.vy += physics.gravity;
+            fruit.x += fruit.vx;
+            fruit.y += fruit.vy;
+
+            if (fruit.x - fruit.fruit.radius < 0) {
+                fruit.x = fruit.fruit.radius;
+                fruit.vx *= -physics.restitution;
+            } else if (fruit.x + fruit.fruit.radius > canvas.width) {
+                fruit.x = canvas.width - fruit.fruit.radius;
+                fruit.vx *= -physics.restitution;
+            }
+
+            if (fruit.y + fruit.fruit.radius > canvas.height) {
+                fruit.y = canvas.height - fruit.fruit.radius;
+                fruit.vy *= -physics.restitution;
+                fruit.vx *= physics.friction;
+                if (Math.abs(fruit.vy) < 0.1) fruit.vy = 0;
+                fruit.grounded = true;
+            }
         }
 
-        function resolveCollisions() {
+        function checkCollisions() {
             for (let i = 0; i < droppedFruits.length; i++) {
                 for (let j = i + 1; j < droppedFruits.length; j++) {
-                    const f1 = droppedFruits[i];
-                    const f2 = droppedFruits[j];
-                    const dx = f2.x - f1.x;
-                    const dy = f2.y - f1.y;
+                    const fruit1 = droppedFruits[i];
+                    const fruit2 = droppedFruits[j];
+
+                    const dx = fruit2.x - fruit1.x;
+                    const dy = fruit2.y - fruit1.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    const minDistance = f1.fruit.radius + f2.fruit.radius;
+                    const minDistance = fruit1.fruit.radius + fruit2.fruit.radius;
 
                     if (distance < minDistance) {
+                        // Collision resolution
                         const angle = Math.atan2(dy, dx);
-                        const targetX = f1.x + Math.cos(angle) * minDistance;
-                        const targetY = f1.y + Math.sin(angle) * minDistance;
-                        const ax = (targetX - f2.x) * physics.collisionDamping;
-                        const ay = (targetY - f2.y) * physics.collisionDamping;
+                        const overlap = minDistance - distance;
 
-                        f1.vx -= ax;
-                        f1.vy -= ay;
-                        f2.vx += ax;
-                        f2.vy += ay;
-                    }
-                }
-            }
-        }
+                        const totalRadius = fruit1.fruit.radius + fruit2.fruit.radius;
+                        const moveRatio1 = fruit2.fruit.radius / totalRadius;
+                        const moveRatio2 = fruit1.fruit.radius / totalRadius;
 
-        function checkForMerges() {
-            for (let i = 0; i < droppedFruits.length; i++) {
-                for (let j = i + 1; j < droppedFruits.length; j++) {
-                    const f1 = droppedFruits[i];
-                    const f2 = droppedFruits[j];
-                    const dx = f2.x - f1.x;
-                    const dy = f2.y - f1.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    const minDistance = f1.fruit.radius + f2.fruit.radius;
+                        fruit1.x -= Math.cos(angle) * overlap * moveRatio1;
+                        fruit1.y -= Math.sin(angle) * overlap * moveRatio1;
+                        fruit2.x += Math.cos(angle) * overlap * moveRatio2;
+                        fruit2.y += Math.sin(angle) * overlap * moveRatio2;
 
-                    if (distance < minDistance && f1.fruit === f2.fruit) {
-                        const newFruitIndex = fruits.indexOf(f1.fruit) + 1;
-                        if (newFruitIndex < fruits.length) {
-                            const newFruit = createFruit((f1.x + f2.x) / 2, (f1.y + f2.y) / 2, newFruitIndex);
-                            droppedFruits.push(newFruit);
+                        const vx = fruit2.vx - fruit1.vx;
+                        const vy = fruit2.vy - fruit1.vy;
+                        const velocityAlongNormal = vx * Math.cos(angle) + vy * Math.sin(angle);
+
+                        if (velocityAlongNormal > 0) {
+                            const impulse = (1 + physics.restitution) * velocityAlongNormal;
+                            const impulseX = impulse * Math.cos(angle);
+                            const impulseY = impulse * Math.sin(angle);
+
+                            fruit1.vx += impulseX * moveRatio1;
+                            fruit1.vy += impulseY * moveRatio1;
+                            fruit2.vx -= impulseX * moveRatio2;
+                            fruit2.vy -= impulseY * moveRatio2;
+                        }
+
+                        fruit1.vx *= physics.collisionDamping;
+                        fruit1.vy *= physics.collisionDamping;
+                        fruit2.vx *= physics.collisionDamping;
+                        fruit2.vy *= physics.collisionDamping;
+
+                        // フルーツが接触したときにgroundedをtrueに設定
+                        fruit1.grounded = true;
+                        fruit2.grounded = true;
+
+                        if (fruit1.fruit === fruit2.fruit && fruits.indexOf(fruit1.fruit) < fruits.length - 1) {
+                            const newFruitIndex = fruits.indexOf(fruit1.fruit) + 1;
+                            const newFruit = createFruit((fruit1.x + fruit2.x) / 2, (fruit1.y + fruit2.y) / 2, newFruitIndex);
+                            newFruit.vx = (fruit1.vx + fruit2.vx) / 2;
+                            newFruit.vy = (fruit1.vy + fruit2.vy) / 2;
                             droppedFruits.splice(j, 1);
                             droppedFruits.splice(i, 1);
-                            score += 10;
-                            return;
+                            droppedFruits.push(newFruit);
+                            score += newFruitIndex * 10;
+                            break;
                         }
                     }
                 }
             }
         }
 
-        continueButton.addEventListener('click', startGame);
+        function showGameOver() {
+            gameOverElement.style.display = 'block';
+            finalScoreElement.textContent = score;
+        }
 
-        startGame();
+        function restartGame() {
+            gameOver = false;
+            score = 0;
+            droppedFruits = [];
+            currentFruit = null;
+            nextFruit = null;
+            gameOverElement.style.display = 'none';
+            const randomIndex = Math.floor(Math.random() * 5);
+            nextFruit = createFruit(canvas.width / 2, fruits[randomIndex].radius, randomIndex);
+            drawNextFruit();
+            update();
+        }
+
+        function startGame() {
+            canvas.addEventListener('mousemove', (e) => {
+                if (currentFruit && !gameOver) {
+                    const rect = canvas.getBoundingClientRect();
+                    currentFruit.x = e.clientX - rect.left;
+                }
+            });
+
+            canvas.addEventListener('click', () => {
+                if (currentFruit && !gameOver) {
+                    droppedFruits.push(currentFruit);
+                    currentFruit = null;
+                }
+            });
+
+            continueButton.addEventListener('click', restartGame);
+
+            drawFruitEvolution();
+            restartGame();
+        }
     </script>
 </body>
 </html>
