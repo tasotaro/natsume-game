@@ -12,13 +12,19 @@
             height: 100vh;
             margin: 0;
             background-color: #f0f0f0;
+            overflow: hidden; /* スクロールを防ぐ */
         }
         #game-container {
             display: flex;
+            flex-direction: column;
+            align-items: center;
             gap: 20px;
+            transform: scale(0.8); /* 全体を縮小表示 */
         }
         canvas {
             border: 1px solid black;
+            max-width: 100%;
+            height: auto;
         }
         #side-panel {
             display: flex;
@@ -40,6 +46,12 @@
             margin-top: 10px;
             padding: 10px 20px;
             font-size: 16px;
+        }
+        @media (min-width: 768px) {
+            #game-container {
+                flex-direction: row;
+                transform: scale(1); /* デスクトップでは元のサイズ */
+            }
         }
     </style>
 </head>
