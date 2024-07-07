@@ -350,6 +350,7 @@
         }
 
         function startGame() {
+            // マウス移動イベント
             canvas.addEventListener('mousemove', (e) => {
                 if (currentFruit && !gameOver) {
                     const rect = canvas.getBoundingClientRect();
@@ -357,7 +358,25 @@
                 }
             });
 
+            // タッチ移動イベント
+            canvas.addEventListener('touchmove', (e) => {
+                if (currentFruit && !gameOver) {
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    currentFruit.x = touch.clientX - rect.left;
+                }
+            });
+
+            // マウスクリックイベント
             canvas.addEventListener('click', () => {
+                if (currentFruit && !gameOver) {
+                    droppedFruits.push(currentFruit);
+                    currentFruit = null;
+                }
+            });
+
+            // タッチ終了イベント
+            canvas.addEventListener('touchend', () => {
                 if (currentFruit && !gameOver) {
                     droppedFruits.push(currentFruit);
                     currentFruit = null;
