@@ -351,13 +351,14 @@
 
         function startGame() {
             let isTouchDevice = false;
+            const scale = window.innerWidth < 768 ? 0.8 : 1;
 
             // マウス移動イベント
             canvas.addEventListener('mousemove', (e) => {
                 if (isTouchDevice) return;
                 if (currentFruit && !gameOver) {
                     const rect = canvas.getBoundingClientRect();
-                    currentFruit.x = e.clientX - rect.left;
+                    currentFruit.x = (e.clientX - rect.left) / scale;
                 }
             });
 
@@ -367,7 +368,7 @@
                 if (currentFruit && !gameOver) {
                     const rect = canvas.getBoundingClientRect();
                     const touch = e.touches[0];
-                    currentFruit.x = touch.clientX - rect.left;
+                    currentFruit.x = (touch.clientX - rect.left) / scale;
                 }
             });
 
