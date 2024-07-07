@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>なつめゲーム</title>
     <style>
-        /* デフォルトのスタイル（デスクトップ向け） */
         body {
             display: flex;
             justify-content: center;
@@ -17,19 +16,14 @@
         #game-container {
             display: flex;
             gap: 20px;
-            width: 100%;
-            max-width: 800px;
         }
         canvas {
             border: 1px solid black;
-            width: 100%;
-            height: auto;
         }
         #side-panel {
             display: flex;
             flex-direction: column;
             gap: 20px;
-            flex: 1;
         }
         #game-over {
             position: absolute;
@@ -59,14 +53,14 @@
                 flex-direction: column;
                 align-items: center;
             }
-            canvas {
+            #gameCanvas {
                 width: 100%;
                 height: auto;
             }
             #nextFruitCanvas,
             #fruitEvolutionCanvas {
-                width: 100px;
-                height: auto;
+                width: 80px;
+                height: 80px;
             }
             #side-panel {
                 flex-direction: row;
@@ -184,8 +178,9 @@
 
             fruits.forEach((fruit, index) => {
                 const angle = (index / fruits.length) * Math.PI * 2 - Math.PI / 2;
-                const x = centerX + radius * Math.cos(angle);
-                const y = centerY + radius * Math.sin(angle);
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+
                 const originalRadius = fruit.radius;
                 fruit.radius = 15; // すべてのフルーツを同じ大きさに設定
                 drawFruit(fruitEvolutionCtx, {fruit: fruit}, x, y);
