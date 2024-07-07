@@ -29,7 +29,7 @@
         #side-panel {
             display: flex;
             flex-direction: row-reverse;
-            gap: 20px;
+            gap: 5px;
             transform: scale(0.8); /* 全体を縮小表示 */
         }
         #game-over {
@@ -65,7 +65,7 @@
     <div id="game-container">
         <canvas id="gameCanvas" width="400" height="600"></canvas>
         <div id="side-panel">
-            <canvas id="nextFruitCanvas" width="150" height="150"></canvas>
+            <canvas id="nextFruitCanvas" width="200" height="200"></canvas>
             <canvas id="fruitEvolutionCanvas" width="200" height="200"></canvas>
         </div>
     </div>
@@ -154,7 +154,7 @@
             nextFruitCtx.fillText('NEXT', 10, 20);
 
             const originalRadius = nextFruit.fruit.radius;
-            nextFruit.fruit.radius = 30; // すべてのフルーツを同じ大きさに設定
+            nextFruit.fruit.radius = 50; // すべてのフルーツを同じ大きさに設定
             drawFruit(nextFruitCtx, nextFruit, nextFruitCanvas.width / 2, nextFruitCanvas.height / 2);
             nextFruit.fruit.radius = originalRadius; // 元の大きさに戻す
         }
